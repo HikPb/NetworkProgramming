@@ -73,15 +73,15 @@ void printListOnlineClient() {
 * @param 
 * @return position i if valid else return -1
 */
-int findAvaiableElementInArrayClient() {
-	int i;
-	for (i = 0; i < 1000; i++) {
-		if(onlineClient[i].requestId == 0) {	// avaiable position is position where requestId = 0
-			return i;
-		}
-	}
-	return -1; // if not have avaiable element
-}
+			// int findAvaiableElementInArrayClient() {
+			// 	int i;
+			// 	for (i = 0; i < 1000; i++) {
+			// 		if(onlineClient[i].requestId == 0) {	// avaiable position is position where requestId = 0
+			// 			return i;
+			// 		}
+			// 	}
+			// 	return -1; // if not have avaiable element
+			// }
 /*
 * find client with request id
 * @param requestId
@@ -101,15 +101,15 @@ int findClient(int requestId) {
 * @param requestId
 * @return position has username if not return -1
 */
-int findClientByUsername(char* username) {
-	int i;
-	for (i = 0; i < 1000; i++) {
-		if(!strcmp(onlineClient[i].username, username) && (onlineClient[i].requestId > 0)) {
-			return i;
-		}
-	}
-	return -1;
-}
+			// int findClientByUsername(char* username) {
+			// 	int i;
+			// 	for (i = 0; i < 1000; i++) {
+			// 		if(!strcmp(onlineClient[i].username, username) && (onlineClient[i].requestId > 0)) {
+			// 			return i;
+			// 		}
+			// 	}
+			// 	return -1;
+			// }
 /*
 * set client into online client array
 * @param int id, int requestId, char* username
@@ -425,8 +425,7 @@ void* client_handler(void* conn_sock) {
 				addClientSocket(recvMess.requestId, connSock);
 				//printListOnlineClient();
 				return NULL;
-
-			case TYPE_REQUEST_FILE: 
+			case TYPE_REQUEST_FILE: //find and show
 				handleRequestFile(recvMess, connSock);
 				break;
 			case TYPE_REQUEST_DOWNLOAD: 

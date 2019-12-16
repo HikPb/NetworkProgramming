@@ -235,7 +235,7 @@ void pingServerToConfirmBackgroundThread() {
 void connectToServer(SocketType type){
 	if(type == UNDER_SOCK){
 		if(connect(under_client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-			printf("\nError!Can not connect to sever! Client exit imediately!\n");
+			printf("\nError!Can not connect to server! Client exit imediately!\n");
 			exit(0);
 		} else {
 			pingServerToConfirmBackgroundThread();
