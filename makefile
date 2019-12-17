@@ -4,8 +4,8 @@ LIBS =  -lm
 
 all: server client
 
-server: tcp-server protocol.o authenticate.o status.o validate.o
-	${CC} -pthread server.o protocol.o authenticate.o status.o validate.o -o server
+server: tcp-server protocol.o authenticate.o status.o validate.o path.o
+	${CC} -pthread server.o protocol.o authenticate.o status.o validate.o path.o -o server
 
 client: tcp-client protocol.o  status.o validate.o
 	${CC} -pthread client.o protocol.o status.o validate.o -o client
@@ -28,6 +28,8 @@ status: status.c
 validate: validate.c
 	${CC} ${CFLAGS} validate.c
 
+path: path.c
+	${CC} ${CFLAGS} path.c
 clean:
 	rm -f *.o *~
 	rm server
