@@ -188,6 +188,11 @@ void showDirectory() {
 	receiveMessage(client_sock,&recvMsg1);
 	receiveMessage(client_sock,&recvMsg2);
 	receiveMessage(client_sock,&recvMsg3);
+	Message msg;
+	msg.requestId = requestId;
+	strcpy(msg.payload,"DaNhan3MEsss");
+	msg.length=strlen(msg.payload);
+	sendMessage(client_sock,msg);
 
 	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
 	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
@@ -244,7 +249,7 @@ int handleSelectDownloadFile(char *selectLink) {
     int option;
     while(1) {
 	    printf("\nPlease select to download (Press 0 to cancel): ");
-	    scanf("%s", choose);
+	    scanf(" %s", choose);
 		while(getchar() != '\n');
 		option = atoi(choose);
 		if((option >= 0) && (option <= i)) {
@@ -327,7 +332,7 @@ void manual() {
 	char choose;	
 	while(1) {
 		printf("Press Q/q for back to main menu: ");
-		scanf("%c", &choose);
+		scanf(" %c", &choose);
 		while(getchar() != '\n');
 		if((choose == 'q') || (choose == 'Q')) break;
 	}
@@ -396,21 +401,10 @@ void manual() {
 // connect client to server
 // parameter: client socket, server address
 // if have error, print error and exit
-void connectToServer(SocketType type){
-	if(type == UNDER_SOCK){
-		if(connect(under_client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-			printf("\nError!Can not connect to server! Client exit imediately!\n");
-			exit(0);
-		} else {
-			//pingServerToConfirmBackgroundThread();
-			//pthread_create(&tid, NULL, &backgroundHandle, NULL);
-		}
-	}
-	else{
-		if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-			printf("\nError!Can not connect to sever! Client exit imediately!\n");
-			exit(0);
-		}
+void connectToServer(){
+	if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
+		printf("\nError!Can not connect to sever! Client exit imediately!\n");
+		exit(0);
 	}
 }
 
@@ -630,7 +624,6 @@ void communicateWithUser(){
 	while(1) {
 		if(!isOnline) {
 			authenticateFunc();
-			//printf("%d\n---------------\n",requestId);
 		} else {
 			requestFileFunc();
 		}
@@ -675,7 +668,7 @@ int main(int argc, char const *argv[])
 	bindClient(port, serAddr);
 	
 	//Step 3: Request to connect server
-	connectToServer(SOCK);
+	connectToServer();
 
 	//Step 4: Communicate with server			
 	communicateWithUser();

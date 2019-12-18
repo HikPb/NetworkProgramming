@@ -163,9 +163,10 @@ void handleDirectory(Message recvMess, int connSock) {
 	char listFolder[MAX_LIST_PATH];
 	char listFile[MAX_LIST_PATH];
 	char path[100];
-	memset(listPath,'\0',MAX_LIST_PATH);
-	memset(listFolder,'\0',MAX_LIST_PATH);
-	memset(listFile,'\0',MAX_LIST_PATH);
+	memset(path,'\0',sizeof(path));
+	memset(listPath,'\0',sizeof(listPath));
+	memset(listFolder,'\0',sizeof(listFolder));
+	memset(listFile,'\0',sizeof(listFile));
 	int i = findClient(recvMess.requestId);
 	strcat(path,"./");
 	strcat(path,onlineClient[i].username);
@@ -188,6 +189,9 @@ void handleDirectory(Message recvMess, int connSock) {
 	msg3.requestId = recvMess.requestId;
 	msg3.length = strlen(msg3.payload);
 	sendMessage(onlineClient[i].connSock, msg3);
+	Message recv;
+	receiveMessage(onlineClient[i].connSock,&recv);
+	printf("Send to client %d: connsock: %d\n|%s|\n%s/n12----%s",i,onlineClient[i].connSock,msg3.payload,recv.payload,path);
 }
 
 void addClientSocket(int id, int connSock) {
