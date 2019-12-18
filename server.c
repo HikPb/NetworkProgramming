@@ -21,7 +21,7 @@
 #define BACKLOG 2   /* Number of allowed connections */
 #define MAX_SIZE 10e6 * 100
 #define STORAGE "./storage/" //default save file place
-
+#define MAX_LIST_PATH 2048
 #define BUFF_SEND 1024
 #define PRIVATE_KEY 256
 pthread_mutex_t lock;
@@ -159,18 +159,35 @@ void increaseRequestId() {
 
 void handleDirectory(Message recvMess, int connSock) {
 	//printMess(recvMess);
-	char listPath[2000];
+	char listPath[MAX_LIST_PATH];
+	char listFolder[MAX_LIST_PATH];
+	char listFile[MAX_LIST_PATH];
 	char path[100];
-	memset(listPath,'\0',sizeof(listPath));
+	memset(listPath,'\0',MAX_LIST_PATH);
+	memset(listFolder,'\0',MAX_LIST_PATH);
+	memset(listFile,'\0',MAX_LIST_PATH);
 	int i = findClient(recvMess.requestId);
 	strcat(path,"./");
 	strcat(path,onlineClient[i].username);
 	getListPath(path,listPath);
-	Message msg;
-	strcpy(msg.payload,listPath);
-	msg.requestId = recvMess.requestId;
-	msg.length = strlen(msg.payload);
-	sendMessage(connSock, msg);
+	getListFolder(path,listFolder);
+	getListFile(path,listFile);
+	Message msg1,msg2,msg3;
+	//sent list path = list folder + list file
+	strcpy(msg1.payload,listPath);
+	msg1.requestId = recvMess.requestId;
+	msg1.length = strlen(msg1.payload);
+	sendMessage(onlineClient[i].connSock, msg1);
+	//sent list folder
+	strcpy(msg2.payload,listFolder);
+	msg2.requestId = recvMess.requestId;
+	msg2.length = strlen(msg2.payload);
+	sendMessage(onlineClient[i].connSock, msg2);
+	//send list file
+	strcpy(msg3.payload,listFile);
+	msg3.requestId = recvMess.requestId;
+	msg3.length = strlen(msg3.payload);
+	sendMessage(onlineClient[i].connSock, msg3);
 }
 
 void addClientSocket(int id, int connSock) {
@@ -234,33 +251,55 @@ void addClientConnsock(int id, int connSock) {
 	pthread_mutex_unlock(&lock);
 }
 
-// void handleRequestDownload(Message recvMess, int connSock) { //ten cu handleRequestDownload
-// 	char** temp = str_split(recvMess.payload, '\n');
-// 	char selectedUser[30];
-// 	char fileName[30];
-// 	//printMess(recvMess);
-// 	MessageType type = TYPE_ERROR;
-// 	if(numberElementsInArray(temp) == 2) {
-// 		strcpy(selectedUser, temp[0]);
-// 		strcpy(fileName, temp[1]);
-// 		addClientConnsock(recvMess.requestId, connSock);
-// 		__sendRequestDownload(recvMess.requestId, selectedUser, fileName, connSock);
-// 	} else {
-// 		type = TYPE_ERROR;
-// 	}
+void handleRequestDownload(Message recvMsg, int connSock) { 
+	Message sendMsg;
+	FILE* fptr;
+	char fullPath[50];
+	strcpy(fullPath,recvMsg.payload);
+	int i = findClient(recvMsg.requestId);
+	if ((fptr = fopen(fullPath, "rb+")) == NULL){
+        printf("Error: File not found\n");
+        sendMsg.type = TYPE_ERROR;
+		sendMsg.length = 0;
+		sendMessage(onlineClient[i].connSock,sendMsg);
+    }
+    else {
+		sendMsg.type = TYPE_OK;
+		sendMsg.length = 0;
+		sendMessage(onlineClient[i].connSock,sendMsg);
+		long filelen;
+		fseek(fptr, 0, SEEK_END);          // Jump to the end of the file
+		filelen = ftell(fptr);             // Get the current byte offset in the file       
+		rewind(fptr);    // pointer to start of file
+		//int check = 1;
+		int sumByte = 0;
+		while(!feof(fptr)) {
+			int numberByteSend = PAYLOAD_SIZE;
+			if((sumByte + PAYLOAD_SIZE) > filelen) {// if over file size
+				numberByteSend = filelen - sumByte; 
+			}
+			char* buffer = (char *) malloc((numberByteSend) * sizeof(char));
+			fread(buffer, numberByteSend, 1, fptr); // read buffer with size 
+			memcpy(sendMsg.payload, buffer, numberByteSend);
+			sendMsg.length = numberByteSend;
+			sumByte += numberByteSend; //increase byte send
+			//printf("sumByte: %d\n", sumByte);
+			if(sendMessage(onlineClient[i].connSock, sendMsg) <= 0) { //cu la under_client_sock
+				printf("Connection closed!\n");
+				//check = 0;
+				break;
+			}
+			free(buffer);
+			if(sumByte >= filelen) {
+				break;
+			}
+		}
+		sendMsg.length = 0;
+		sendMessage(onlineClient[i].connSock, sendMsg);//cu la under client sock
+		
+    }
 
-// }
-
-
-
-
-
-
-
-
-
-
-
+}
 
 /*
 * remove one file
@@ -338,7 +377,6 @@ void findOrCreateFolderUsername(char* username) {
 	if (stat(username, &st) == -1) {
 	    mkdir(username, 0700);
 	}
-	//strcpy(fileRepository, username);
 }
 /*
 * handle login function
@@ -522,7 +560,7 @@ void* client_handler(void* conn_sock) {
 				//handleRequestFile(recvMess, connSock);
 				break;
 			case TYPE_REQUEST_DOWNLOAD: 
-				//handleRequestDownload(recvMess, connSock);
+				handleRequestDownload(recvMess, connSock);
 				break;
 			case TYPE_UPLOAD_FILE: 
 				handleUploadFile(recvMess, connSock);

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 
 #include <stdio.h>          /* These are the usual header files */
 #include <stdlib.h>
 #include <sys/types.h>
@@ -13,10 +14,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <inttypes.h>
-
+#include <libgen.h>
 
 #include "protocol.h"
-// #include "authenticate.h"
 #include "validate.h"
 #include "status.h"
 char current_user[255];
@@ -28,6 +28,9 @@ pthread_t tid;
 char choose;
 Message *mess;
 int isOnline = 0;
+char** listPath;
+char** listFolder;
+char** listFile;
 //char fileRepository[100];
 #define DIM(x) (sizeof(x)/sizeof(*(x)))
 
@@ -92,67 +95,13 @@ void toNameOfFile(char *fileName, char* name ) {
     }
     strcpy(name, *(tokens + i -1));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-* handle get file as request
-* @param message
-* @return void
-*/
-// void handleRequestFile(Message recvMess) {
-// 	//printMess(recvMess);
-// 	Message msg;
-// 	msg.requestId = recvMess.requestId;
-// 	msg.length = 0;
-// 	char fileName[50];
-// 	strcpy(fileName, recvMess.payload);
-// 	char fullPath[100];
-// 	getFullPath(fileName, fullPath);
-// 	FILE *fptr;
-// 	fptr = fopen(fullPath, "r");
-
-// 	if(fptr != NULL) {
-// 		msg.type = TYPE_REQUEST_FILE;
-// 		long filelen;
-// 	    fseek(fptr, 0, SEEK_END);          // Jump to the end of the file
-// 	    filelen = ftell(fptr);             // Get the current byte offset in the file       
-// 	    rewind(fptr);
-// 	    char len[100];
-// 	    sprintf(len, "%ld", filelen);
-// 	    strcpy(msg.payload, len);
-// 	    msg.length = strlen(msg.payload);
-// 	    fclose(fptr);
-// 	} else {
-// 		msg.type = TYPE_ERROR;
-// 	}
-// 	sendMessage(under_client_sock, msg);
-// }
-
+void removeFile(char* fileName) {
+	// remove file
+    if (remove(fileName) != 0)
+    {
+        perror("Following error occurred\n");
+    }
+}
 /*
 * handle upload file to server
 * @param message
@@ -215,59 +164,86 @@ void uploadFile() {
     }
 }
 
-/*
-* show list file of user
-* @param 
-* @return void
-*/
-			// void showListFile() {
-			// 	DIR *dir;
-			// 	struct dirent *ent;
-			// 	char folderPath[100];
-			// 	sprintf(folderPath, "./%s", current_user);
-			// 	if ((dir = opendir (folderPath)) != NULL) {
-			// 	/* print all the files and directories within directory */
-			// 	while ((ent = readdir (dir)) != NULL) {
-			// 		if(ent->d_name[0] != '.') {
-			// 			printf ("%s\n", ent->d_name);
-			// 		}
-			// 	}
-			// 	closedir (dir);
-			// 	} else {
-			// 	/* could not open directory */
-			// 	perror ("Permission denied!!");
-			// 	}
-			// }
+void handleSearchFile(char *fileName, char *listResult){
+	int i;
+	for(i=0;*(*listFile+1);i++){
+		if(strcmp(listFile[i],fileName)==0){
+			strcat(listResult,listFile[i]);
+		}
+	}
 
-
-
+}
 /*
 * show list user who have file
 * @param 
 * @return void
 */
-int showDirectory() {
-	Message sendMsg, recvMsg;
+void showDirectory() {
+	Message sendMsg, recvMsg1, recvMsg2, recvMsg3;
 	sendMsg.type = TYPE_REQUEST_DIRECTORY;
 	sendMsg.requestId = requestId;
 	sendMsg.length = 0;
 	sendMessage(client_sock,sendMsg);
-	receiveMessage(client_sock,&recvMsg);
-	char** listPath = str_split(recvMsg.payload, '\n');
-	int i;
-	printf("\n---------- List Path ------------\n");
-	printf(" Username\t\t\tFile\t\t\tSize\n");
-	for (i = 0; *(listPath + i); i++)
-    {
-    	//char** tmp = str_split(*(list + i), ' ');
-        //printf("\n%d. %s\t\t\t%s\t\t\t%s", i + 1, tmp[0], fileName, tmp[1]);
-		printf("%s\n",listPath[i]);
-    }
+	//receive list path, list folder path, list file path from server 
+	receiveMessage(client_sock,&recvMsg1);
+	receiveMessage(client_sock,&recvMsg2);
+	receiveMessage(client_sock,&recvMsg3);
 
-    char choose[10];
+	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
+	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
+	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
+	
+	char root[100];
+	strcpy(root,"./");
+	strcat(root,current_user);
+	printf("\n-------------- Your Directory -----------------\n");
+	int i;
+	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
+	if(recvMsg2.length>0){
+		for (i = 0; *(listFolder + i); i++){
+			/*The POSIX version of dirname and basename may modify the content of the argument. 
+			Hence, we need to strdup the local_file.*/
+			char *temp = strdup(listFolder[i]); 
+			char *temp2= strdup(listFolder[i]);
+			if(strcmp(dirname(temp),root)==0)
+			printf("%d. %-15s%-30sFolder\n", i+1, basename(temp2), listFolder[i]);
+			free(temp);
+			free(temp2);
+		}
+	}
+	if(recvMsg3.length>0){
+		for (i = 0; *(listFile + i); i++){
+			char *temp = strdup(listFile[i]); 
+			char *temp2= strdup(listFile[i]);
+			if(strcmp(dirname(temp),root)==0)
+			printf("%d. %-15s%-30sFile\n", i+1, basename(temp2), listFile[i]);
+			free(temp);
+			free(temp2);
+		}
+	}
+}
+
+/*
+* receive file from server and save
+* @param filename, path
+* @return void
+*/
+int handleSelectDownloadFile(char *selectLink) {
+	char fileName[100];
+	char listResult[1000];
+	printf("Please Input Download File Name: ");
+	scanf("%[^\n]s", fileName);
+	handleSearchFile(fileName,listResult);
+	char** tmp = str_split(listResult, '\n');
+	int i;
+	printf("   %-15s%-30s\n","Name","Path");
+	for(i=0;*(*tmp+1);i++){
+		printf("%d. %-15s%-30s\n", i+1,fileName , tmp[i]);
+	}
+	char choose[10];
     int option;
     while(1) {
-	    printf("\nPlease select user to download (Press 0 to cancel): ");
+	    printf("\nPlease select to download (Press 0 to cancel): ");
 	    scanf("%s", choose);
 		while(getchar() != '\n');
 		option = atoi(choose);
@@ -276,140 +252,87 @@ int showDirectory() {
 		} else {
 			printf("Please Select Valid Options!!\n");
 		}
-	}	
+	}
+	
 	if(option == 0) {
 		return -1;
 	}
 	else {
-		// char** tmp = str_split(list[option - 1], ' ');
-		// strcpy(username, tmp[0]);
-		printf("acd");
+		strcpy(selectLink, tmp[option -1]);
 	}
 	return 1;
 }
 
-// /*
-// * receive file from server and save
-// * @param filename, path
-// * @return void
-// */
-// int download(char* fileName, char* path) {
-// 	Message recvMsg;
-// 	FILE *fptr;
-// 	char tmpFileName[100];
-// 	char fullPath[100];
-// 	char** tmp = str_split(fileName, '.');
-// 	if(numberElementsInArray(tmp) == 1) {
-// 		sprintf(tmpFileName, "%s_%lu", tmp[0], (unsigned long)time(NULL));
-// 	} else{
-// 		sprintf(tmpFileName, "%s_%lu.%s", tmp[0], (unsigned long)time(NULL), tmp[1]);
-// 	}
+int download(char *link){
+	Message sendMsg, recvMsg;
+	FILE * fptr;
+	char savePath[50];
+	sendMsg.type = TYPE_REQUEST_DOWNLOAD;
+	sendMsg.requestId = requestId;
+	strcpy(sendMsg.payload,link);
+	sendMsg.length= strlen(sendMsg.payload);
+	sendMessage(client_sock,sendMsg);
+	receiveMessage(client_sock,&recvMsg);
+	if(recvMsg.type != TYPE_ERROR){
+		printf("Please Input Saved Path in Local: ");
+		scanf("%[^\n]s", savePath);
+		fptr = fopen(savePath, "w+");
+		while(1) {
+			receiveMessage(client_sock, &recvMsg);
+			if(recvMsg.type == TYPE_ERROR) {
+				fclose(fptr);
+				removeFile(savePath);
+				return -1;
+			}
+			if(recvMsg.length > 0) { 
+				fwrite(recvMsg.payload, recvMsg.length, 1, fptr);
+			} else {
+				break;
+			}
+		}
+		fclose(fptr);
+		return 1;
+	}else return -1;
+}
+/*
+* method download
+* @param filename, path
+* @return void
+*/
+void downloadFile() {
+	char selectLink[50];
+	if(handleSelectDownloadFile(selectLink)==1){
+		printf("......................Donwloading..........\n");
+		if(download(selectLink) == -1) {
+			showBubbleNotify("Error: Something Error When Downloading File!!");
+			printf("Error: Something Error When Downloading File!!\n");
+			return;
+		}
+		char message[100];
+		sprintf(message, "...Donwload Success..\n");
+		showBubbleNotify(message);
+		//printf("...Donwload Success...");
+	}else return;
+}
+
+/*
+* how to use system manual
+* @param 
+* @return void
+*/
+void manual() {
+	printf("\n---- For search and download file from system press 1 and type file name\n");
+	printf("---- For view list file in your folder press 2\n");
 	
-// 	getFullPath(tmpFileName, fullPath);
-// 	strcpy(path, fullPath);
-// 	fptr = fopen(fullPath, "w+");
-// 	while(1) {
-//         receiveMessage(client_sock, &recvMsg);
-//         if(recvMsg.type == TYPE_ERROR) {
-//         	fclose(fptr);
-//         	removeFile(fullPath);
-//         	return -1;
-//         }
-//         //printMess(recvMsg);
-//         if(recvMsg.length > 0) { 
-//             fwrite(recvMsg.payload, recvMsg.length, 1, fptr);
-//         } else {
-//             break;
-//         }
-//     }
-//     fclose(fptr);
-//     return 1;
-// }
-
-
-// /*
-// * method download
-// * @param filename, path
-// * @return void
-// */
-// void handleDownloadFile(char* selectedUser,char* fileName) {
-// 	Message msg;
-// 	msg.requestId = mess->requestId;
-// 	msg.type = TYPE_REQUEST_DOWNLOAD;
-// 	sprintf(msg.payload, "%s\n%s", selectedUser, fileName);
-// 	msg.length = strlen(msg.payload);
-// 	sendMessage(client_sock, msg);
-// 	printf("......................Donwloading..........\n");
-// 	char path[100];
-// 	if(download(fileName, path) == -1) {
-// 		showBubbleNotify("Error: Something Error When Downloading File!!");
-// 		printf("Error: Something Error When Downloading File!!\n");
-// 		return;
-// 	}
-// 	char message[100];
-// 	sprintf(message, "...Donwload Success.. File save in %s\n", path);
-// 	showBubbleNotify(message);
-// 	printf("...Donwload Success.. File save in %s\n", path);
-// }
-
-// /*
-// * search file method 
-// * @param 
-// * @return void
-// */
-// void handleSearchFile() {
-// 	char fileName[100];
-// 	char selectedUser[30];
-// 	char choose = '\0';
-// 	printf("Please Input File Name You Want To Search: ");
-// 	scanf("%[^\n]s", fileName);
-// 	char fullPath[100];
-// 	getFullPath(fileName, fullPath);
-// 	while(getchar() != '\n');
-// 	FILE *fptr;
-// 	fptr = fopen(fullPath, "r");
-// 	if(fptr != NULL) {
-// 		while(1) {
-// 			printf("\nYou have a file with same name!\n -- Are you want to continue search? y/n: ");
-// 			scanf("%c", &choose);
-// 			while(getchar() != '\n');
-// 			if((choose == 'y' || (choose == 'n'))) {
-// 				break;
-// 			}
-// 		}
-// 	}
-// 	if(choose == 'n') {
-// 		return;
-// 	}
-// 	mess->type = TYPE_REQUEST_FILE;
-// 	strcpy(mess->payload, fileName);
-// 	mess->length = strlen(mess->payload);
-// 	sendMessage(client_sock, *mess);
-// 	printWatingMsg();
-// 	receiveMessage(client_sock, mess);
-// 	if(showListSelectUser(mess->payload, selectedUser, fileName) == 1) {
-// 		handleDownloadFile(selectedUser, fileName);
-// 	}	
-// }
-
-// /*
-// * how to use system manual
-// * @param 
-// * @return void
-// */
-// void manual() {
-// 	printf("\n---- For search and download file from system press 1 and type file name\n");
-// 	printf("---- For view list file in your folder press 2\n");
-	
-// 	char choose;	
-// 	while(1) {
-// 		printf("Press Q/q for back to main menu: ");
-// 		scanf("%c", &choose);
-// 		while(getchar() != '\n');
-// 		if((choose == 'q') || (choose == 'Q')) break;
-// 	}
-// 	return;
-// }
+	char choose;	
+	while(1) {
+		printf("Press Q/q for back to main menu: ");
+		scanf("%c", &choose);
+		while(getchar() != '\n');
+		if((choose == 'q') || (choose == 'Q')) break;
+	}
+	return;
+}
 
 
 
@@ -656,7 +579,7 @@ void mainMenu() {
 */
 void authenticateFunc() {
 	menuAuthenticate();
-	scanf("%c", &choose);
+	scanf(" %c", &choose);
 	while(getchar() != '\n');
 	switch (choose){
 		case '1':
@@ -679,20 +602,19 @@ void authenticateFunc() {
 * @return void
 */
 void requestFileFunc() {
+	showDirectory();
 	mainMenu();
 	scanf(" %c", &choose);
-	printf("--------------Chon: %c------------\n", choose);
 	while(getchar() != '\n');
 	switch (choose) {
 		case '1':
-			//handleSearchFile();
 			uploadFile();
 			break;
 		case '2':
-			showDirectory();
+			downloadFile();
 			break;
 		case '3':
-			//manual();
+			manual();
 			break;
 		case '4':
 			logoutFunc(current_user);
