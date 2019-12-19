@@ -40,11 +40,14 @@ char** listFile;
 */
 int numberElementsInArray(char** temp) {
 	int i;
-	for (i = 0; *(temp + i); i++)
-    {
-        // count number elements in array
-    }
-    return i;
+	if (temp!=NULL){
+		for (i = 0; *(temp + i); i++)
+		{
+			// count number elements in array
+		}
+		return i;
+	}
+	return 0;
 }
 
 /*
@@ -108,18 +111,43 @@ void removeFile(char* fileName) {
 void uploadFile() {
 	char fileName[30];
 	char fullPath[100];
-	printf("Please Input File Upload Path: ");
-	scanf("%[^\n]s", fullPath);
+	int i;
+	printf("\n------------------ Upload File ------------------\n");
+	printf("Please choose folder you want to upload into it :\n");
+	printf("1. %-15s./%-28sFolder\n",current_user,current_user);
+	for(i =0; *(listFolder+i);i++){
+		char *temp = strdup(listFolder[i]);
+		printf("%d. %-15s%-30sFolder\n", i+2, basename(temp), listFolder[i]);
+		free(temp);
+	}
+	char choose[10];
+	int option;
+	while(1){
+		printf("\nChoose (Press 0 to cancel): ");
+		scanf(" %s", choose);
+		while(getchar() != '\n');
+		option = atoi(choose);
+		if((option >= 0) && (option <= i+1)) {
+			break;
+		} else {
+			printf("Please Select Valid Options!!\n");
+		}
+	}
+	if(option == 0) return;
+	printf("Please input the path of file you want to upload:");
+	scanf("%[^\n]",fullPath);
 	Message msg, sendMsg, recvMsg;
 	FILE* fptr;
 	if ((fptr = fopen(fullPath, "rb+")) == NULL){
         printf("Error: File not found\n");
-        //fclose(fptr);
     }
     else {
-		toNameOfFile(fullPath,fileName);
-		sprintf(msg.payload, "./%s/%s", current_user,fileName);
-		//printf("%s",msg.payload);
+		if(option == 1){
+			toNameOfFile(fullPath,fileName);
+			sprintf(msg.payload, "./%s/%s", current_user,fileName);
+		}else {
+			sprintf(msg.payload, "%s/%s", listFolder[option-2],fileName);
+		}
 		msg.length = strlen(msg.payload);
 		msg.type = TYPE_UPLOAD_FILE;
 		msg.requestId = requestId;
@@ -133,7 +161,6 @@ void uploadFile() {
 			fseek(fptr, 0, SEEK_END);          // Jump to the end of the file
 			filelen = ftell(fptr);             // Get the current byte offset in the file       
 			rewind(fptr);    // pointer to start of file
-			//int check = 1;
 			int sumByte = 0;
 			while(!feof(fptr)) {
 				int numberByteSend = PAYLOAD_SIZE;
@@ -145,10 +172,8 @@ void uploadFile() {
 				memcpy(sendMsg.payload, buffer, numberByteSend);
 				sendMsg.length = numberByteSend;
 				sumByte += numberByteSend; //increase byte send
-				//printf("sumByte: %d\n", sumByte);
-				if(sendMessage(client_sock, sendMsg) <= 0) { //cu la under_client_sock
+				if(sendMessage(client_sock, sendMsg) <= 0) { 
 					printf("Connection closed!\n");
-					//check = 0;
 					break;
 				}
 				free(buffer);
@@ -157,16 +182,17 @@ void uploadFile() {
 				}
 			}
 			sendMsg.length = 0;
-        	sendMessage(client_sock, sendMsg);//cu la under client sock
+        	sendMessage(client_sock, sendMsg);
 		}
     }
 }
 
 void handleSearchFile(char *fileName, char *listResult){
 	int i;
-	for(i=0;*(*listFile+1);i++){
+	for(i=0;*(listFile+i);i++){
 		if(strcmp(listFile[i],fileName)==0){
 			strcat(listResult,listFile[i]);
+			strcat(listResult,"\n");
 		}
 	}
 
@@ -197,7 +223,7 @@ void showDirectory() {
 	char root[100];
 	strcpy(root,"./");
 	strcat(root,current_user);
-	printf("\n-------------- Your Directory -----------------\n");
+	printf("\n---------------- Your Directory ----------------\n");
 	int i;
 	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
 	if(numberElementsInArray(listFolder)>0){
@@ -469,11 +495,11 @@ void logoutFunc(char *current_user){
 * @return void
 */
 void menuAuthenticate() {
-	printf("\n---------------FileShareSystem-------------\n");
+	printf("\n------------------Storage System------------------\n");
 	printf("\n1 - Login");
 	printf("\n2 - Register");
 	printf("\n3 - Exit");
-	printf("\nPlease choose: ");
+	printf("\nChoose: ");
 }
 
 /*
@@ -482,7 +508,7 @@ void menuAuthenticate() {
 * @return void
 */
 void mainMenu() {
-	printf("\n---------------FileShareSystem-------------\n");
+	printf("\n------------------Storage System------------------\n");
 	printf("\n1 - Upload file");
 	printf("\n2 - Download File");
 	printf("\n3 - User Manual");
