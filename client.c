@@ -173,12 +173,8 @@ void handleSearchFile(char *fileName, char *listResult){
 	}
 
 }
-/*
-* show list user who have file
-* @param 
-* @return void
-*/
-void showDirectory() {
+
+void getDirectory(){
 	Message sendMsg, recvMsg1, recvMsg2, recvMsg3;
 	sendMsg.type = TYPE_REQUEST_DIRECTORY;
 	sendMsg.requestId = requestId;
@@ -188,23 +184,25 @@ void showDirectory() {
 	receiveMessage(client_sock,&recvMsg1);
 	receiveMessage(client_sock,&recvMsg2);
 	receiveMessage(client_sock,&recvMsg3);
-	Message msg;
-	msg.requestId = requestId;
-	strcpy(msg.payload,"DaNhan3MEsss");
-	msg.length=strlen(msg.payload);
-	sendMessage(client_sock,msg);
-
+	printf("%s",recvMsg3.payload);
 	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
 	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
 	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
 	
+}
+/*
+* show list user who have file
+* @param 
+* @return void
+*/
+void showDirectory() {
 	char root[100];
 	strcpy(root,"./");
 	strcat(root,current_user);
 	printf("\n-------------- Your Directory -----------------\n");
 	int i;
 	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
-	if(recvMsg2.length>0){
+	if(1){
 		for (i = 0; *(listFolder + i); i++){
 			/*The POSIX version of dirname and basename may modify the content of the argument. 
 			Hence, we need to strdup the local_file.*/
@@ -216,7 +214,7 @@ void showDirectory() {
 			free(temp2);
 		}
 	}
-	if(recvMsg3.length>0){
+	if(1){
 		for (i = 0; *(listFile + i); i++){
 			char *temp = strdup(listFile[i]); 
 			char *temp2= strdup(listFile[i]);
@@ -394,30 +392,41 @@ void manual() {
 * @param 
 * @return void
 */
-// void pingServerToConfirmBackgroundThread() {
-// 	mess->type = TYPE_BACKGROUND;
-// 	sendMessage(under_client_sock, *mess);
-// }
+void pingServerToConfirmBackgroundThread() {
+	mess->type = TYPE_BACKGROUND;
+	sendMessage(under_client_sock, *mess);
+}
 // connect client to server
 // parameter: client socket, server address
 // if have error, print error and exit
-void connectToServer(){
-	if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-		printf("\nError!Can not connect to sever! Client exit imediately!\n");
-		exit(0);
+void connectToServer(SocketType type){
+	if(type == UNDER_SOCK){
+		if(connect(under_client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
+			printf("\nError!Can not connect to sever! Client exit imediately!\n");
+			exit(0);
+		} else {
+			pingServerToConfirmBackgroundThread();
+			//pthread_create(&tid, NULL, &backgroundHandle, NULL);
+		}
+	}
+	else{
+		if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
+			printf("\nError!Can not connect to sever! Client exit imediately!\n");
+			exit(0);
+		}
 	}
 }
 
 // start method run on background to wait search and download file request
-// void backgroundHandleStart() {
-// 	under_client_sock = initSock();
-// 	connectToServer(UNDER_SOCK);
-// }
+void backgroundHandleStart() {
+	under_client_sock = initSock();
+	connectToServer(UNDER_SOCK);
+}
 
 // close method run on background
-// void backgroundHandleEnd(){
-// 	close(under_client_sock);
-// }
+void backgroundHandleEnd(){
+	close(under_client_sock);
+}
 
 /*
 * print waiting message to screen when waitng download
@@ -459,7 +468,7 @@ void loginFunc(char *current_user){
 		strcpy(current_user, username);
 		requestId = mess->requestId;
 		//backgroundHandleStart();
-		//findOrCreateFolderUsername(username);
+		getDirectory();
 	} else {
 		showBubbleNotify("Error: Login Failed!!");
 	}
@@ -511,6 +520,7 @@ void registerFunc(char *current_user){
 			strcpy(current_user, username);
 			requestId = mess->requestId;
 			//backgroundHandleStart();
+			//getDirectory();
 		} else {
 			showBubbleNotify("Error: Register Failed!!");
 		}
@@ -668,7 +678,7 @@ int main(int argc, char const *argv[])
 	bindClient(port, serAddr);
 	
 	//Step 3: Request to connect server
-	connectToServer();
+	connectToServer(SOCK);
 
 	//Step 4: Communicate with server			
 	communicateWithUser();

@@ -168,6 +168,7 @@ void handleDirectory(Message recvMess, int connSock) {
 	memset(listFolder,'\0',sizeof(listFolder));
 	memset(listFile,'\0',sizeof(listFile));
 	int i = findClient(recvMess.requestId);
+	printf("CLientname: %s, connsock: %d, underSock: %d\n",onlineClient[i].username,onlineClient[i].connSock,onlineClient[i].clientUSock);
 	strcat(path,"./");
 	strcat(path,onlineClient[i].username);
 	getListPath(path,listPath);
@@ -185,23 +186,21 @@ void handleDirectory(Message recvMess, int connSock) {
 	msg2.length = strlen(msg2.payload);
 	sendMessage(onlineClient[i].connSock, msg2);
 	//send list file
+	msg3.type = TYPE_REQUEST_DIRECTORY;
 	strcpy(msg3.payload,listFile);
 	msg3.requestId = recvMess.requestId;
 	msg3.length = strlen(msg3.payload);
 	sendMessage(onlineClient[i].connSock, msg3);
-	Message recv;
-	receiveMessage(onlineClient[i].connSock,&recv);
-	printf("Send to client %d: connsock: %d\n|%s|\n%s/n12----%s",i,onlineClient[i].connSock,msg3.payload,recv.payload,path);
 }
 
-void addClientSocket(int id, int connSock) {
-	int i = findClient(id);
-	pthread_mutex_lock(&lock);
-	if(i >= 0) {
-		onlineClient[i].connSock = connSock;
-	}
-	pthread_mutex_unlock(&lock);
-}
+// void addClientSocket(int id, int connSock) {
+// 	int i = findClient(id);
+// 	pthread_mutex_lock(&lock);
+// 	if(i >= 0) {
+// 		onlineClient[i].connSock = connSock;
+// 	}
+// 	pthread_mutex_unlock(&lock);
+// }
 
 
 // int __sendRequestDownload(int requestId, char* selectedUser, char* fileName, int connSock) { //ten cu __sendRequestDownload
@@ -246,11 +245,11 @@ void addClientSocket(int id, int connSock) {
 // 	return 1;
 // }
 
-void addClientConnsock(int id, int connSock) {
+void addClientUnderSocket(int id, int connSock) {
 	int i = findClient(id);
 	pthread_mutex_lock(&lock);
 	if(i >= 0) {
-		onlineClient[i].clientSock = connSock;
+		onlineClient[i].clientUSock = connSock;
 	}
 	pthread_mutex_unlock(&lock);
 }
@@ -555,13 +554,11 @@ void* client_handler(void* conn_sock) {
 				//printListOnlineClient();
 				break;
 			case TYPE_BACKGROUND: 
-				//addClientSocket(recvMess.requestId, connSock);
+				addClientUnderSocket(recvMess.requestId, connSock);
 				return NULL;
 			case TYPE_REQUEST_DIRECTORY:
 				handleDirectory(recvMess, connSock);
-				return NULL;
-			case TYPE_REQUEST_FILE: //find and show
-				//handleRequestFile(recvMess, connSock);
+				//return NULL;
 				break;
 			case TYPE_REQUEST_DOWNLOAD: 
 				handleRequestDownload(recvMess, connSock);
