@@ -173,12 +173,14 @@ void handleRequestDownload(Message recvMsg, int connSock) {
 	FILE* fptr;
 	char fullPath[50];
 	strcpy(fullPath,recvMsg.payload);
+	printf("handleRequestDOwn: %s\n",fullPath);
 	int i = findClient(recvMsg.requestId);
 	if ((fptr = fopen(fullPath, "rb+")) == NULL){
         printf("Error: File not found\n");
         sendMsg.type = TYPE_ERROR;
 		sendMsg.length = 0;
 		sendMessage(onlineClient[i].connSock,sendMsg);
+		return;
     }
     else {
 		sendMsg.type = TYPE_OK;

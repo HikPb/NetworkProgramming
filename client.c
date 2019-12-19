@@ -104,6 +104,62 @@ void removeFile(char* fileName) {
     }
 }
 /*
+* get list directory from server
+* @return void
+*/
+void getDirectory(){
+	Message sendMsg, recvMsg1, recvMsg2, recvMsg3;
+	sendMsg.type = TYPE_REQUEST_DIRECTORY;
+	sendMsg.requestId = requestId;
+	sendMsg.length = 0;
+	sendMessage(client_sock,sendMsg);
+	//receive list path, list folder path, list file path from server 
+	receiveMessage(client_sock,&recvMsg1);
+	receiveMessage(client_sock,&recvMsg2);
+	receiveMessage(client_sock,&recvMsg3);
+	printf("%s",recvMsg3.payload);
+	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
+	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
+	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
+	
+}
+
+/*
+* show list directory to client screen
+* @return void
+*/
+void showDirectory() {
+	char root[100];
+	strcpy(root,"./");
+	strcat(root,current_user);
+	printf("\n---------------- Your Directory ----------------\n");
+	int i;
+	printf("  %-15s%-30s%-6s\n","Name","Path","Type");
+	if(numberElementsInArray(listFolder)>0){
+		for (i = 0; *(listFolder + i); i++){
+			/*The POSIX version of dirname and basename may modify the content of the argument. 
+			Hence, we need to strdup the local_file.*/
+			char *temp = strdup(listFolder[i]); 
+			char *temp2= strdup(listFolder[i]);
+			if(strcmp(dirname(temp),root)==0)
+			printf("+ %-15s%-30sFolder\n",basename(temp2), listFolder[i]);
+			free(temp);
+			free(temp2);
+		}
+	}
+	if(numberElementsInArray(listFile)>0){
+		for (i = 0; *(listFile + i); i++){
+			char *temp = strdup(listFile[i]); 
+			char *temp2= strdup(listFile[i]);
+			if(strcmp(dirname(temp),root)==0)
+			printf("- %-15s%-30sFile\n",basename(temp2), listFile[i]);
+			free(temp);
+			free(temp2);
+		}
+	}
+}
+
+/*
 * handle upload file to server
 * @param message
 * @return void
@@ -135,7 +191,7 @@ void uploadFile() {
 	}
 	if(option == 0) return;
 	printf("Please input the path of file you want to upload:");
-	scanf("%[^\n]",fullPath);
+	scanf("%[^\n]s",fullPath);
 	Message msg, sendMsg, recvMsg;
 	FILE* fptr;
 	if ((fptr = fopen(fullPath, "rb+")) == NULL){
@@ -192,63 +248,12 @@ void uploadFile() {
 void handleSearchFile(char *fileName, char *listResult){
 	int i;
 	for(i=0;*(listFile+i);i++){
-		if(strcmp(listFile[i],fileName)==0){
+		char *temp = strdup(listFile[i]);
+		if(strcmp(basename(temp),fileName)==0){
 			strcat(listResult,listFile[i]);
 			strcat(listResult,"\n");
 		}
-	}
-
-}
-
-void getDirectory(){
-	Message sendMsg, recvMsg1, recvMsg2, recvMsg3;
-	sendMsg.type = TYPE_REQUEST_DIRECTORY;
-	sendMsg.requestId = requestId;
-	sendMsg.length = 0;
-	sendMessage(client_sock,sendMsg);
-	//receive list path, list folder path, list file path from server 
-	receiveMessage(client_sock,&recvMsg1);
-	receiveMessage(client_sock,&recvMsg2);
-	receiveMessage(client_sock,&recvMsg3);
-	printf("%s",recvMsg3.payload);
-	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
-	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
-	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
-	
-}
-/*
-* show list user who have file
-* @param 
-* @return void
-*/
-void showDirectory() {
-	char root[100];
-	strcpy(root,"./");
-	strcat(root,current_user);
-	printf("\n---------------- Your Directory ----------------\n");
-	int i;
-	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
-	if(numberElementsInArray(listFolder)>0){
-		for (i = 0; *(listFolder + i); i++){
-			/*The POSIX version of dirname and basename may modify the content of the argument. 
-			Hence, we need to strdup the local_file.*/
-			char *temp = strdup(listFolder[i]); 
-			char *temp2= strdup(listFolder[i]);
-			if(strcmp(dirname(temp),root)==0)
-			printf("%d. %-15s%-30sFolder\n", i+1, basename(temp2), listFolder[i]);
-			free(temp);
-			free(temp2);
-		}
-	}
-	if(numberElementsInArray(listFile)>0){
-		for (i = 0; *(listFile + i); i++){
-			char *temp = strdup(listFile[i]); 
-			char *temp2= strdup(listFile[i]);
-			if(strcmp(dirname(temp),root)==0)
-			printf("%d. %-15s%-30sFile\n", i+1, basename(temp2), listFile[i]);
-			free(temp);
-			free(temp2);
-		}
+		free(temp);
 	}
 }
 
@@ -260,13 +265,14 @@ void showDirectory() {
 int handleSelectDownloadFile(char *selectLink) {
 	char fileName[100];
 	char listResult[1000];
+	memset(listResult,'\0',sizeof(listResult));
 	printf("Please Input Download File Name: ");
 	scanf("%[^\n]s", fileName);
 	handleSearchFile(fileName,listResult);
 	char** tmp = str_split(listResult, '\n');
 	int i;
 	printf("   %-15s%-30s\n","Name","Path");
-	for(i=0;*(*tmp+1);i++){
+	for(i=0;*(tmp+i);i++){
 		printf("%d. %-15s%-30s\n", i+1,fileName , tmp[i]);
 	}
 	char choose[10];
@@ -295,7 +301,10 @@ int handleSelectDownloadFile(char *selectLink) {
 int download(char *link){
 	Message sendMsg, recvMsg;
 	FILE * fptr;
+	char saveFolder[20];
 	char savePath[50];
+	char temp[50];
+	strcpy(temp,link);
 	sendMsg.type = TYPE_REQUEST_DOWNLOAD;
 	sendMsg.requestId = requestId;
 	strcpy(sendMsg.payload,link);
@@ -304,8 +313,9 @@ int download(char *link){
 	receiveMessage(client_sock,&recvMsg);
 	if(recvMsg.type != TYPE_ERROR){
 		printf("Please Input Saved Path in Local: ");
-		scanf("%[^\n]s", savePath);
-		fptr = fopen(savePath, "w+");
+		scanf("%[^\n]s", saveFolder);
+		sprintf(savePath,"%s/%s",saveFolder,basename(temp));
+		if((fptr = fopen(savePath, "w+"))!=NULL){
 		while(1) {
 			receiveMessage(client_sock, &recvMsg);
 			if(recvMsg.type == TYPE_ERROR) {
@@ -321,7 +331,9 @@ int download(char *link){
 		}
 		fclose(fptr);
 		return 1;
-	}else return -1;
+		}
+	} 
+	return -1;
 }
 /*
 * method download
@@ -510,7 +522,7 @@ void menuAuthenticate() {
 * @return void
 */
 void mainMenu() {
-	printf("\n------------------Storage System------------------\n");
+	printf("\n------------------Menu------------------\n");
 	printf("\n1 - Upload file");
 	printf("\n2 - Download File");
 	printf("\n3 - User Manual");
@@ -556,6 +568,7 @@ void requestFileFunc() {
 	switch (choose) {
 		case '1':
 			uploadFile();
+			getDirectory();
 			break;
 		case '2':
 			downloadFile();
