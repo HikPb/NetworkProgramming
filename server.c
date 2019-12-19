@@ -173,7 +173,6 @@ void handleRequestDownload(Message recvMsg, int connSock) {
 	FILE* fptr;
 	char fullPath[50];
 	strcpy(fullPath,recvMsg.payload);
-	printf("handleRequestDOwn: %s\n",fullPath);
 	int i = findClient(recvMsg.requestId);
 	if ((fptr = fopen(fullPath, "rb+")) == NULL){
         printf("Error: File not found\n");
@@ -186,36 +185,39 @@ void handleRequestDownload(Message recvMsg, int connSock) {
 		sendMsg.type = TYPE_OK;
 		sendMsg.length = 0;
 		sendMessage(onlineClient[i].connSock,sendMsg);
-		long filelen;
-		fseek(fptr, 0, SEEK_END);          // Jump to the end of the file
-		filelen = ftell(fptr);             // Get the current byte offset in the file       
-		rewind(fptr);    // pointer to start of file
-		//int check = 1;
-		int sumByte = 0;
-		while(!feof(fptr)) {
-			int numberByteSend = PAYLOAD_SIZE;
-			if((sumByte + PAYLOAD_SIZE) > filelen) {// if over file size
-				numberByteSend = filelen - sumByte; 
+		Message msg;
+		receiveMessage(onlineClient[i].connSock,&msg);
+		if(msg.type!=TYPE_CANCEL){
+			long filelen;
+			fseek(fptr, 0, SEEK_END);          // Jump to the end of the file
+			filelen = ftell(fptr);             // Get the current byte offset in the file       
+			rewind(fptr);    // pointer to start of file
+			//int check = 1;
+			int sumByte = 0;
+			while(!feof(fptr)) {
+				int numberByteSend = PAYLOAD_SIZE;
+				if((sumByte + PAYLOAD_SIZE) > filelen) {// if over file size
+					numberByteSend = filelen - sumByte; 
+				}
+				char* buffer = (char *) malloc((numberByteSend) * sizeof(char));
+				fread(buffer, numberByteSend, 1, fptr); // read buffer with size 
+				memcpy(sendMsg.payload, buffer, numberByteSend);
+				sendMsg.length = numberByteSend;
+				sumByte += numberByteSend; //increase byte send
+				//printf("sumByte: %d\n", sumByte);
+				if(sendMessage(onlineClient[i].connSock, sendMsg) <= 0) { 
+					printf("Connection closed!\n");
+					//check = 0;
+					break;
+				}
+				free(buffer);
+				if(sumByte >= filelen) {
+					break;
+				}
 			}
-			char* buffer = (char *) malloc((numberByteSend) * sizeof(char));
-			fread(buffer, numberByteSend, 1, fptr); // read buffer with size 
-			memcpy(sendMsg.payload, buffer, numberByteSend);
-			sendMsg.length = numberByteSend;
-			sumByte += numberByteSend; //increase byte send
-			//printf("sumByte: %d\n", sumByte);
-			if(sendMessage(onlineClient[i].connSock, sendMsg) <= 0) { 
-				printf("Connection closed!\n");
-				//check = 0;
-				break;
-			}
-			free(buffer);
-			if(sumByte >= filelen) {
-				break;
-			}
+			sendMsg.length = 0;
+			sendMessage(onlineClient[i].connSock, sendMsg);
 		}
-		sendMsg.length = 0;
-		sendMessage(onlineClient[i].connSock, sendMsg);
-		
     }
 
 }

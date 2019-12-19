@@ -117,7 +117,6 @@ void getDirectory(){
 	receiveMessage(client_sock,&recvMsg1);
 	receiveMessage(client_sock,&recvMsg2);
 	receiveMessage(client_sock,&recvMsg3);
-	printf("%s",recvMsg3.payload);
 	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
 	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
 	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
@@ -167,14 +166,16 @@ void showDirectory() {
 void uploadFile() {
 	char fileName[30];
 	char fullPath[100];
-	int i;
+	int i=0;
 	printf("\n------------------ Upload File ------------------\n");
 	printf("Please choose folder you want to upload into it :\n");
 	printf("1. %-15s./%-28sFolder\n",current_user,current_user);
-	for(i =0; *(listFolder+i);i++){
-		char *temp = strdup(listFolder[i]);
-		printf("%d. %-15s%-30sFolder\n", i+2, basename(temp), listFolder[i]);
-		free(temp);
+	if(numberElementsInArray(listFolder)>0){
+		for(i =0; *(listFolder+i);i++){
+			char *temp = strdup(listFolder[i]);
+			printf("%d. %-15s%-30sFolder\n", i+2, basename(temp), listFolder[i]);
+			free(temp);
+		}
 	}
 	char choose[10];
 	int option;
@@ -266,9 +267,11 @@ int handleSelectDownloadFile(char *selectLink) {
 	char fileName[100];
 	char listResult[1000];
 	memset(listResult,'\0',sizeof(listResult));
+	printf("\n------------------ Download File ------------------\n");
 	printf("Please Input Download File Name: ");
 	scanf("%[^\n]s", fileName);
 	handleSearchFile(fileName,listResult);
+	if(strlen(listResult)<=0) return -1;
 	char** tmp = str_split(listResult, '\n');
 	int i;
 	printf("   %-15s%-30s\n","Name","Path");
@@ -315,7 +318,28 @@ int download(char *link){
 		printf("Please Input Saved Path in Local: ");
 		scanf("%[^\n]s", saveFolder);
 		sprintf(savePath,"%s/%s",saveFolder,basename(temp));
-		if((fptr = fopen(savePath, "w+"))!=NULL){
+		if(fopen(savePath, "r+")!=NULL){
+			char choose;
+			printf("Warning: File name already exists!!! Do you want to replace? Y/N\n");
+			while(1){
+				scanf(" %c", &choose);
+				while(getchar() != '\n');
+				if((choose =='Y')||choose=='y'||choose=='N'||choose=='n') {
+					break;
+				} else {
+					printf("Please press Y or N\n");
+				}
+			}
+			if(choose=='N'||choose=='n') {
+				sendMsg.type = TYPE_CANCEL;
+				sendMessage(client_sock,sendMsg);
+				return -1;
+			}
+		}
+		sendMsg.type = TYPE_OK;
+		sendMessage(client_sock,sendMsg);
+		printf("----------------------Downloading-----------------------\n");
+		fptr = fopen(savePath,"w+");
 		while(1) {
 			receiveMessage(client_sock, &recvMsg);
 			if(recvMsg.type == TYPE_ERROR) {
@@ -332,7 +356,6 @@ int download(char *link){
 		fclose(fptr);
 		return 1;
 		}
-	} 
 	return -1;
 }
 /*
@@ -343,17 +366,16 @@ int download(char *link){
 void downloadFile() {
 	char selectLink[50];
 	if(handleSelectDownloadFile(selectLink)==1){
-		printf("......................Donwloading..........\n");
+		printf("...............................................\n");
 		if(download(selectLink) == -1) {
-			showBubbleNotify("Error: Something Error When Downloading File!!");
-			printf("Error: Something Error When Downloading File!!\n");
+			printf("Having trouble, stop downloading the file!!\n");
 			return;
 		}
-		char message[100];
-		sprintf(message, "...Donwload Success..\n");
-		showBubbleNotify(message);
-		//printf("...Donwload Success...");
-	}else return;
+		printf("Donwload Successful!!!");
+	}else {
+		printf("No results were found\n");
+		return;
+	}
 }
 
 /*

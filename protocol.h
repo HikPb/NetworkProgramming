@@ -36,7 +36,7 @@ typedef enum {
 	TYPE_UPLOAD_FILE,
 	TYPE_ERROR,
 	TYPE_OK,
-	TYPE_BACKGROUND
+	TYPE_CANCEL
 } MessageType;
 
 typedef struct Message{
@@ -50,15 +50,9 @@ typedef struct Client {
 	int requestId;
 	char username[30];
 	int connSock;
-	int clientUSock;
 	int uploadSuccess;
 } Client;
 
-typedef struct FileMatching {
-	int requestId;
-	FILE* fptr;
-	int isDownloadSuccess;
-} FileMatching;
 /*
 * clone Message mess from temp
 * @param Message* mess, Message temp
