@@ -142,19 +142,19 @@ void uploadFile() {
         printf("Error: File not found\n");
     }
     else {
+		toNameOfFile(fullPath,fileName);
 		if(option == 1){
-			toNameOfFile(fullPath,fileName);
 			sprintf(msg.payload, "./%s/%s", current_user,fileName);
 		}else {
 			sprintf(msg.payload, "%s/%s", listFolder[option-2],fileName);
 		}
-		msg.length = strlen(msg.payload);
 		msg.type = TYPE_UPLOAD_FILE;
+		msg.length = strlen(msg.payload);
 		msg.requestId = requestId;
 		sendMessage(client_sock,msg);
 		receiveMessage(client_sock,&recvMsg);
-		if(msg.type == TYPE_ERROR){
-			printf("Error: File name is used\n");
+		if(recvMsg.type == TYPE_ERROR){
+			printf("%s\n",recvMsg.payload);
 			fclose(fptr);
 		}else{
 			long filelen;
@@ -183,6 +183,8 @@ void uploadFile() {
 			}
 			sendMsg.length = 0;
         	sendMessage(client_sock, sendMsg);
+			receiveMessage(client_sock, &recvMsg);
+			printf("%s\n",recvMsg.payload);
 		}
     }
 }

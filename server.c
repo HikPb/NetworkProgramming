@@ -201,7 +201,7 @@ void handleRequestDownload(Message recvMsg, int connSock) {
 			sendMsg.length = numberByteSend;
 			sumByte += numberByteSend; //increase byte send
 			//printf("sumByte: %d\n", sumByte);
-			if(sendMessage(onlineClient[i].connSock, sendMsg) <= 0) { //cu la under_client_sock
+			if(sendMessage(onlineClient[i].connSock, sendMsg) <= 0) { 
 				printf("Connection closed!\n");
 				//check = 0;
 				break;
@@ -212,7 +212,7 @@ void handleRequestDownload(Message recvMsg, int connSock) {
 			}
 		}
 		sendMsg.length = 0;
-		sendMessage(onlineClient[i].connSock, sendMsg);//cu la under client sock
+		sendMessage(onlineClient[i].connSock, sendMsg);
 		
     }
 
@@ -242,21 +242,19 @@ void handleUploadFile(Message recvMsg, int connSock) {
 	char fullPath[100];
 	Message sendMsg;
 	strcpy(fullPath,recvMsg.payload);
-	printf("|%s|\n",fullPath);
-	if((fptr = fopen(fullPath, "r")) != NULL) { // check if file exist
+	int i = findClient(recvMsg.requestId);
+	if(fopen(fullPath,"r")!=NULL ) { // check if file exist
 		sendMsg.type = TYPE_ERROR;
-		sendMsg.length = 0;
+		strcpy(sendMsg.payload,"Warning: File name already exists");
+		sendMsg.length = strlen(sendMsg.payload);
 		sendMsg.requestId = recvMsg.requestId;
-		int i = findClient(sendMsg.requestId);
 		sendMessage(onlineClient[i].connSock,sendMsg);
-		fclose(fptr);
+		return;
 	}
 	else {
-		//fclose(fptr);
 		sendMsg.type = TYPE_OK;
 		sendMsg.length = 0;
 		sendMsg.requestId = recvMsg.requestId;
-		int i = findClient(sendMsg.requestId);
 		sendMessage(onlineClient[i].connSock,sendMsg);
 		fptr = fopen(fullPath,"w+");
 		while(1) {
@@ -265,7 +263,6 @@ void handleUploadFile(Message recvMsg, int connSock) {
 				fclose(fptr);
 				removeFile(fullPath);
 			}
-			//printMess(recvMsg);
 			if(recvMsg.length > 0) { 
 				fwrite(recvMsg.payload, recvMsg.length, 1, fptr);
 			} else {
@@ -273,6 +270,9 @@ void handleUploadFile(Message recvMsg, int connSock) {
 			}
 		}
 		fclose(fptr);
+		strcpy(sendMsg.payload,"Upload Successful!");
+		sendMsg.length = strlen(sendMsg.payload);
+		sendMessage(onlineClient[i].connSock,sendMsg);
 	}
 }
 
@@ -323,7 +323,7 @@ void handleLogin(Message mess, int connSock) {
 							increaseRequestId();
 							int i = findAvaiableElementInArrayClient();
 							setClient(i, mess.requestId, username, connSock); // when user login success set user to online client
-							printf("loginfunc i:%d, rqID: %d, connsock: %d\n",i,mess.requestId,connSock);
+							printf("Login ID:%d, rqID: %d, connsock: %d\n",i,mess.requestId,connSock);
 							findOrCreateFolderUsername(username);
 						}
 					}
@@ -538,7 +538,6 @@ int main(int argc, char **argv)
 		sin_size = sizeof(struct sockaddr_in);
 		if ((conn_sock = accept(listen_sock,( struct sockaddr *)&client, (unsigned int*)&sin_size)) == -1) 
 			perror("\nError: ");
-		printf("%d\n",conn_sock);
 		printf("You got a connection from %s\n", inet_ntoa(client.sin_addr) ); /* prints client's IP */
 		if (pthread_mutex_init(&lock, NULL) != 0) 
 	    { 
