@@ -20,7 +20,6 @@
 #define PORT 5550   /* Port that will be opened */ 
 #define BACKLOG 2   /* Number of allowed connections */
 #define MAX_SIZE 10e6 * 100
-#define STORAGE "./storage/" //default save file place
 #define MAX_LIST_PATH 2048
 #define BUFF_SEND 1024
 #define PRIVATE_KEY 256
@@ -103,15 +102,15 @@ int findClient(int requestId) {
 * @param requestId
 * @return position has username if not return -1
 */
-			// int findClientByUsername(char* username) {
-			// 	int i;
-			// 	for (i = 0; i < 1000; i++) {
-			// 		if(!strcmp(onlineClient[i].username, username) && (onlineClient[i].requestId > 0)) {
-			// 			return i;
-			// 		}
-			// 	}
-			// 	return -1;
-			// }
+int findClientByUsername(char* username) {
+	int i;
+	for (i = 0; i < 1000; i++) {
+		if(!strcmp(onlineClient[i].username, username) && (onlineClient[i].requestId > 0)) {
+			return i;
+		}
+	}
+	return -1;
+}
 /*
 * set client into online client array
 * @param int id, int requestId, char* username
@@ -132,30 +131,6 @@ void increaseRequestId() {
 	pthread_mutex_unlock(&lock);
 }
 
-// char* searchFileInOnlineClients(char* fileName, int requestId, char* listUser) {
-// 	int i;
-// 	Message msg, recvMsg;
-// 	msg.requestId = requestId;
-// 	char user[200];
-// 	strcpy(msg.payload, fileName);
-// 	msg.length = strlen(msg.payload);
-// 	msg.type = TYPE_REQUEST_FILE;
-// 	for(i = 0; i < 1000; i++) {
-// 		if((onlineClient[i].requestId > 0) && (onlineClient[i].requestId != requestId)) {
-// 			sendMessage(onlineClient[i].connSock, msg);
-// 			receiveMessage(onlineClient[i].connSock, &recvMsg);
-// 			if(recvMsg.type != TYPE_ERROR) {
-// 				sprintf(user, "%s %s", onlineClient[i].username, recvMsg.payload);
-// 				strcat(listUser, user);
-// 				strcat(listUser, "\n");
-// 			}
-// 		}
-// 	}
-// 	if(strlen(listUser) > 0) {
-// 		listUser[strlen(listUser) - 1] = '\0';
-// 	}
-// 	return listUser;
-// }
 
 void handleDirectory(Message recvMess, int connSock) {
 	//printMess(recvMess);
@@ -168,7 +143,6 @@ void handleDirectory(Message recvMess, int connSock) {
 	memset(listFolder,'\0',sizeof(listFolder));
 	memset(listFile,'\0',sizeof(listFile));
 	int i = findClient(recvMess.requestId);
-	printf("CLientname: %s, connsock: %d, underSock: %d\n",onlineClient[i].username,onlineClient[i].connSock,onlineClient[i].clientUSock);
 	strcat(path,"./");
 	strcat(path,onlineClient[i].username);
 	getListPath(path,listPath);
@@ -193,66 +167,6 @@ void handleDirectory(Message recvMess, int connSock) {
 	sendMessage(onlineClient[i].connSock, msg3);
 }
 
-// void addClientSocket(int id, int connSock) {
-// 	int i = findClient(id);
-// 	pthread_mutex_lock(&lock);
-// 	if(i >= 0) {
-// 		onlineClient[i].connSock = connSock;
-// 	}
-// 	pthread_mutex_unlock(&lock);
-// }
-
-
-// int __sendRequestDownload(int requestId, char* selectedUser, char* fileName, int connSock) { //ten cu __sendRequestDownload
-// 	int i = findClientByUsername(selectedUser);
-// 	Message msg, recvMsg;
-// 	int index;
-// 	fflush(stdout);
-// 	if(i >= 0) {
-// 		msg.type = TYPE_REQUEST_DOWNLOAD;
-// 		strcpy(msg.payload, fileName);
-// 		msg.length = strlen(msg.payload);
-// 		msg.requestId = requestId;
-// 		sendMessage(onlineClient[i].connSock, msg);
-// 		while(1) {
-// 			if((receiveMessage(onlineClient[i].connSock, &recvMsg) < 0) || onlineClient[i].uploadSuccess) {
-// 				break;
-// 			}
-// 			index = findClient(recvMsg.requestId);
-// 			if(index >= 0) {
-// 				if(recvMsg.type == TYPE_ERROR) {
-// 					sendMessage(onlineClient[index].clientSock, recvMsg);
-// 					return -1;
-// 				}
-// 				if(recvMsg.length > 0) {
-// 					sendMessage(onlineClient[index].clientSock, recvMsg);
-// 				}
-// 				else if(recvMsg.length == 0) {
-// 					sendMessage(onlineClient[index].clientSock, recvMsg);
-// 					onlineClient[index].uploadSuccess = 1;
-// 					break;
-// 				}
-// 			} else {
-// 				break;
-// 			}
-// 		}
-// 		onlineClient[index].uploadSuccess = 0;
-// 	} else {
-// 		msg.type = TYPE_ERROR;
-// 		sendMessage(connSock, msg);
-// 		return 1;
-// 	}
-// 	return 1;
-// }
-
-void addClientUnderSocket(int id, int connSock) {
-	int i = findClient(id);
-	pthread_mutex_lock(&lock);
-	if(i >= 0) {
-		onlineClient[i].clientUSock = connSock;
-	}
-	pthread_mutex_unlock(&lock);
-}
 
 void handleRequestDownload(Message recvMsg, int connSock) { 
 	Message sendMsg;
@@ -553,9 +467,6 @@ void* client_handler(void* conn_sock) {
 				handleAuthenticateRequest(recvMess, connSock);
 				//printListOnlineClient();
 				break;
-			case TYPE_BACKGROUND: 
-				addClientUnderSocket(recvMess.requestId, connSock);
-				return NULL;
 			case TYPE_REQUEST_DIRECTORY:
 				handleDirectory(recvMess, connSock);
 				//return NULL;

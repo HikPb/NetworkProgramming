@@ -22,7 +22,6 @@
 char current_user[255];
 int requestId;
 int client_sock;
-int under_client_sock;
 struct sockaddr_in server_addr; /* server's address information */
 pthread_t tid;
 char choose;
@@ -31,7 +30,6 @@ int isOnline = 0;
 char** listPath;
 char** listFolder;
 char** listFile;
-//char fileRepository[100];
 #define DIM(x) (sizeof(x)/sizeof(*(x)))
 
 
@@ -202,7 +200,7 @@ void showDirectory() {
 	printf("\n-------------- Your Directory -----------------\n");
 	int i;
 	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
-	if(1){
+	if(numberElementsInArray(listFolder)>0){
 		for (i = 0; *(listFolder + i); i++){
 			/*The POSIX version of dirname and basename may modify the content of the argument. 
 			Hence, we need to strdup the local_file.*/
@@ -214,7 +212,7 @@ void showDirectory() {
 			free(temp2);
 		}
 	}
-	if(1){
+	if(numberElementsInArray(listFile)>0){
 		for (i = 0; *(listFile + i); i++){
 			char *temp = strdup(listFile[i]); 
 			char *temp2= strdup(listFile[i]);
@@ -337,95 +335,15 @@ void manual() {
 	return;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-* method of socket run on background
-* @param 
-* @return void
-*/
-// void* backgroundHandle() {
-// 	// hanlde request in background
-// 	Message recvMess;
-// 	while(1) {
-// 		//receives message from client
-// 		if(receiveMessage(under_client_sock, &recvMess) < 0) {
-// 			break;
-// 		}
-
-// 		switch(recvMess.type) {
-// 			case TYPE_REQUEST_FILE: 
-// 				handleRequestFile(recvMess);
-// 				break;
-// 			case TYPE_REQUEST_DOWNLOAD:
-// 				//printf("download under sock\n");
-// 				uploadFile(recvMess);
-// 				break;
-// 			default: break;
-// 		}
-// 	}
-// 	return NULL;
-// }
-
-/*
-* handle ping server as new socket was init
-* @param 
-* @return void
-*/
-void pingServerToConfirmBackgroundThread() {
-	mess->type = TYPE_BACKGROUND;
-	sendMessage(under_client_sock, *mess);
-}
 // connect client to server
 // parameter: client socket, server address
 // if have error, print error and exit
-void connectToServer(SocketType type){
-	if(type == UNDER_SOCK){
-		if(connect(under_client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-			printf("\nError!Can not connect to sever! Client exit imediately!\n");
-			exit(0);
-		} else {
-			pingServerToConfirmBackgroundThread();
-			//pthread_create(&tid, NULL, &backgroundHandle, NULL);
-		}
+void connectToServer(){
+	if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
+		printf("\nError!Can not connect to sever! Client exit imediately!\n");
+		exit(0);
+	
 	}
-	else{
-		if(connect(client_sock, (struct sockaddr*) (&server_addr), sizeof(struct sockaddr)) < 0){
-			printf("\nError!Can not connect to sever! Client exit imediately!\n");
-			exit(0);
-		}
-	}
-}
-
-// start method run on background to wait search and download file request
-void backgroundHandleStart() {
-	under_client_sock = initSock();
-	connectToServer(UNDER_SOCK);
-}
-
-// close method run on background
-void backgroundHandleEnd(){
-	close(under_client_sock);
 }
 
 /*
@@ -467,7 +385,6 @@ void loginFunc(char *current_user){
 		isOnline = 1;
 		strcpy(current_user, username);
 		requestId = mess->requestId;
-		//backgroundHandleStart();
 		getDirectory();
 	} else {
 		showBubbleNotify("Error: Login Failed!!");
@@ -519,7 +436,6 @@ void registerFunc(char *current_user){
 			isOnline = 1;
 			strcpy(current_user, username);
 			requestId = mess->requestId;
-			//backgroundHandleStart();
 			//getDirectory();
 		} else {
 			showBubbleNotify("Error: Register Failed!!");
@@ -543,7 +459,6 @@ void logoutFunc(char *current_user){
 		isOnline = 0;
 		current_user[0] = '\0';
 		requestId =0;
-		//backgroundHandleEnd();
 	}
 	printf("%s\n", mess->payload);
 }
@@ -678,7 +593,7 @@ int main(int argc, char const *argv[])
 	bindClient(port, serAddr);
 	
 	//Step 3: Request to connect server
-	connectToServer(SOCK);
+	connectToServer();
 
 	//Step 4: Communicate with server			
 	communicateWithUser();
