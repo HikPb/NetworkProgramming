@@ -38,7 +38,8 @@ typedef enum {
 	TYPE_OK,
 	TYPE_CANCEL,
 	TYPE_CREATE_FOLDER,
-	TYPE_DELETE_FOLDER
+	TYPE_DELETE_FOLDER,
+	TYPE_DELETE_FILE
 } MessageType;
 
 typedef struct Message{

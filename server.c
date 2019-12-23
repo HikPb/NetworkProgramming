@@ -150,6 +150,10 @@ void handleDeleteFolder(Message recvMess){
 	remove_dir(recvMess.payload);
 }
 
+void handleDeleteFile(Message recvMess){
+	remove(recvMess.payload);
+}
+
 void handleDirectory(Message recvMess, int connSock) {
 	//printMess(recvMess);
 	char listFolder[MAX_LIST_PATH];
@@ -487,6 +491,8 @@ void* client_handler(void* conn_sock) {
 			case TYPE_DELETE_FOLDER:
 				handleDeleteFolder(recvMess);
 				break;
+			case TYPE_DELETE_FILE:
+				handleDeleteFile(recvMess);
 			default: break;
 		}
 

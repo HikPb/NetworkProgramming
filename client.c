@@ -444,6 +444,41 @@ void createNewFolder(){
 	sendMsg.type = TYPE_CREATE_FOLDER;
 	sendMessage(client_sock,sendMsg);
 }
+void deleteFile(char *cur_file){
+	Message sendMsg;
+	strcpy(sendMsg.payload,cur_file);
+	sendMsg.length = strlen(sendMsg.payload);
+	sendMsg.requestId = requestId;
+	sendMsg.type = TYPE_DELETE_FILE;
+	sendMessage(client_sock,sendMsg);
+}
+
+void menuFileProcess() {
+	printf("\n------------------File Process------------------\n");
+	printf("\n1 - Delete File");
+	printf("\n2 - Download File");
+	printf("\n3 - Cancel");
+	printf("\nChoose: ");
+}
+void fileProcess(char *cur_file) {
+	menuFileProcess();
+	scanf(" %c", &choose);
+	while(getchar() != '\n');
+	switch (choose){
+		case '1':
+			deleteFile(cur_file);
+			getDirectory();
+			break;
+		case '2':
+
+			break;
+		case '3':
+			break;
+		default:
+			printf("Syntax Error! Please choose again!\n");
+	}
+	
+}
 
 void deleteFolder(char *cur_folder){
 	Message sendMsg;
@@ -512,6 +547,8 @@ void openFolder(char *folder) {
 	else{
 		if(hasInList(listCurrentDirec[option-1],listFolder)){
 			folderProcess(folder,listCurrentDirec[option-1]);
+		}else{
+			fileProcess(listCurrentDirec[option-1]);
 		}
 	}
 	
@@ -541,10 +578,10 @@ void printWatingMsg() {
 void getLoginInfo(char *str){
 	char username[255];
 	char password[255];
-	printf("Enter username?: ");
+	printf("Enter username: ");
 	scanf("%[^\n]s", username);
 	while(getchar() != '\n');
-	printf("Enter password?: ");
+	printf("Enter password: ");
 	scanf("%[^\n]s", password);
 	while(getchar()!='\n');
 	sprintf(mess->payload, "LOGIN\nUSER %s\nPASS %s", username, password);
@@ -574,7 +611,8 @@ void loginFunc(char *current_user){
 	} else {
 		showBubbleNotify("Error: Login Failed!!");
 	}
-	printf("%s\n", mess->payload);
+	//printf("%s\n", mess->payload);
+	printf("LOGIN SUCCESSFUL!!!\n");
 }
 
 /*
@@ -625,7 +663,8 @@ void registerFunc(char *current_user){
 		} else {
 			showBubbleNotify("Error: Register Failed!!");
 		}
-		printf("%s\n", mess->payload);
+		//printf("%s\n", mess->payload);
+		printf("REGISTER SUCCESSFUL!!!\n");
 	}
 }
 
@@ -645,7 +684,8 @@ void logoutFunc(char *current_user){
 		current_user[0] = '\0';
 		requestId =0;
 	}
-	printf("%s\n", mess->payload);
+	//printf("%s\n", mess->payload);
+	printf("LOGGED OUT SUCCESSFULLY!\n");
 }
 
 /*
