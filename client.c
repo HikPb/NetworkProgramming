@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/uio.h>
-#include <pthread.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <inttypes.h>
@@ -19,15 +18,17 @@
 #include "protocol.h"
 #include "validate.h"
 #include "status.h"
+#include "stack.h"
 char current_user[255];
+char root[100];
 int requestId;
 int client_sock;
 struct sockaddr_in server_addr; /* server's address information */
-pthread_t tid;
 char choose;
 Message *mess;
 int isOnline = 0;
-char** listPath;
+struct Stack *stack;
+char *listCurrentDirec[30];
 char** listFolder;
 char** listFile;
 #define DIM(x) (sizeof(x)/sizeof(*(x)))
@@ -51,6 +52,22 @@ int numberElementsInArray(char** temp) {
 }
 
 /*
+* count number param of command
+* @param temp
+* @return number param
+*/
+int hasInList(char* element, char** temp) {
+	int i;
+	if (temp!=NULL){
+		for (i = 0; *(temp + i); i++)
+		{
+			if(strcmp(element,temp[i])==0) return 1;
+		}
+	}
+	return 0;
+}
+
+/*
 * init new socket - print error if have error
 * @param message, int connSock
 * @return new socket
@@ -69,7 +86,7 @@ int initSock(){
 * @param notify
 * @return void
 */
-void *showBubbleNotify(void *notify){	
+void *showBubbleNotify(char *notify){	
 	char command[200];
 	sprintf(command, "terminal-notifier -message \"%s\"", notify);
 	system(command);
@@ -108,7 +125,7 @@ void removeFile(char* fileName) {
 * @return void
 */
 void getDirectory(){
-	Message sendMsg, recvMsg1, recvMsg2, recvMsg3;
+	Message sendMsg, recvMsg1, recvMsg2;
 	sendMsg.type = TYPE_REQUEST_DIRECTORY;
 	sendMsg.requestId = requestId;
 	sendMsg.length = 0;
@@ -116,10 +133,8 @@ void getDirectory(){
 	//receive list path, list folder path, list file path from server 
 	receiveMessage(client_sock,&recvMsg1);
 	receiveMessage(client_sock,&recvMsg2);
-	receiveMessage(client_sock,&recvMsg3);
-	if(recvMsg1.length>0) listPath = str_split(recvMsg1.payload, '\n');
-	if(recvMsg2.length>0) listFolder = str_split(recvMsg2.payload, '\n');
-	if(recvMsg3.length>0) listFile = str_split(recvMsg3.payload, '\n');
+	if(recvMsg1.length>0) listFolder = str_split(recvMsg1.payload, '\n');
+	if(recvMsg2.length>0) listFile = str_split(recvMsg2.payload, '\n');
 	
 }
 
@@ -127,12 +142,10 @@ void getDirectory(){
 * show list directory to client screen
 * @return void
 */
-void showDirectory() {
-	char root[100];
-	strcpy(root,"./");
-	strcat(root,current_user);
+void showDirectory(char *root) {
 	printf("\n---------------- Your Directory ----------------\n");
 	int i;
+	int j=0;
 	printf("  %-15s%-30s%-6s\n","Name","Path","Type");
 	if(numberElementsInArray(listFolder)>0){
 		for (i = 0; *(listFolder + i); i++){
@@ -140,8 +153,11 @@ void showDirectory() {
 			Hence, we need to strdup the local_file.*/
 			char *temp = strdup(listFolder[i]); 
 			char *temp2= strdup(listFolder[i]);
-			if(strcmp(dirname(temp),root)==0)
-			printf("+ %-15s%-30sFolder\n",basename(temp2), listFolder[i]);
+			if(strcmp(dirname(temp),root)==0) {
+				printf("+ %-15s%-30sFolder\n",basename(temp2), listFolder[i]);
+				listCurrentDirec[j]=strdup(listFolder[i]);
+				j++;
+			}
 			free(temp);
 			free(temp2);
 		}
@@ -150,8 +166,11 @@ void showDirectory() {
 		for (i = 0; *(listFile + i); i++){
 			char *temp = strdup(listFile[i]); 
 			char *temp2= strdup(listFile[i]);
-			if(strcmp(dirname(temp),root)==0)
-			printf("- %-15s%-30sFile\n",basename(temp2), listFile[i]);
+			if(strcmp(dirname(temp),root)==0){
+				printf("- %-15s%-30sFile\n",basename(temp2), listFile[i]);
+				listCurrentDirec[j]=strdup(listFile[i]);
+				j++;
+			}
 			free(temp);
 			free(temp2);
 		}
@@ -379,22 +398,41 @@ void downloadFile() {
 }
 
 /*
-* how to use system manual
+* open subfolder
 * @param 
 * @return void
 */
-void manual() {
-	printf("\n---- For search and download file from system press 1 and type file name\n");
-	printf("---- For view list file in your folder press 2\n");
-	
-	char choose;	
-	while(1) {
-		printf("Press Q/q for back to main menu: ");
-		scanf(" %c", &choose);
+void openFolder(char *folder) {
+	showDirectory(folder);
+	for(int u=0;u<=stack->top;u++)
+	printf("++++++Top Stack++++++: %s\n",stack->array[u]);
+	printf("\n------------------------------------------------\n");
+	char choose[10];
+    int option;
+	int i = numberElementsInArray(listCurrentDirec);
+    while(1) {
+	    printf("\nSelect to File/Folder (1,2...n)(Press 0 to Back): ");
+	    scanf(" %s", choose);
 		while(getchar() != '\n');
-		if((choose == 'q') || (choose == 'Q')) break;
+		option = atoi(choose);
+		if((option >= 0) && (option <= i)) {
+			break;
+		} else {
+			printf("Please Select Valid Options!!\n");
+		}
+	}	
+	if(option == 0) {
+		pop(stack);
+		if(!isEmpty(stack)) openFolder(peek(stack));
+		else openFolder(root);
 	}
-	return;
+	else{
+		if(hasInList(listCurrentDirec[option-1],listFolder)){
+			push(stack,folder);
+			openFolder(listCurrentDirec[option-1]);
+		}
+	}
+	
 }
 
 // connect client to server
@@ -446,8 +484,11 @@ void loginFunc(char *current_user){
 	if(mess->type != TYPE_ERROR){
 		isOnline = 1;
 		strcpy(current_user, username);
+		strcpy(root, "./");
+		strcat(root,username);
 		requestId = mess->requestId;
 		getDirectory();
+		stack = createStack(30);
 	} else {
 		showBubbleNotify("Error: Login Failed!!");
 	}
@@ -547,7 +588,7 @@ void mainMenu() {
 	printf("\n------------------Menu------------------\n");
 	printf("\n1 - Upload file");
 	printf("\n2 - Download File");
-	printf("\n3 - User Manual");
+	printf("\n3 - Open folder");
 	printf("\n4 - Logout");
 	printf("\nPlease choose: ");
 }
@@ -583,7 +624,6 @@ void authenticateFunc() {
 * @return void
 */
 void requestFileFunc() {
-	showDirectory();
 	mainMenu();
 	scanf(" %c", &choose);
 	while(getchar() != '\n');
@@ -596,7 +636,7 @@ void requestFileFunc() {
 			downloadFile();
 			break;
 		case '3':
-			manual();
+			openFolder(root);
 			break;
 		case '4':
 			logoutFunc(current_user);

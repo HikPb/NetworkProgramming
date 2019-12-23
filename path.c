@@ -98,3 +98,37 @@ void getListFile(char *basePath, char *listfile)
     }
     closedir(dir);
 }
+/**
+ * Delete the folder and all the files in it
+ * @param path 
+ */
+void remove_dir(char *path)
+{
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path);
+        while((entry = readdir(dir))!= NULL)
+        {   
+                DIR *sub_dir = NULL;
+                FILE *file = NULL;
+                char abs_path[1000] = {0};
+                if(*(entry->d_name) != '.')
+                {   
+                        sprintf(abs_path, "%s/%s", path, entry->d_name);
+                        if(sub_dir = opendir(abs_path))
+                        {   
+                                closedir(sub_dir);
+                                remove_dir(abs_path);
+                        }   
+                        else 
+                        {   
+                                if((file = fopen(abs_path, "r"))!= NULL)
+                                {   
+                                        fclose(file);
+                                        remove(abs_path);
+                                }   
+                        }   
+                }   
+        }   
+        remove(path);
+}

@@ -134,37 +134,29 @@ void increaseRequestId() {
 
 void handleDirectory(Message recvMess, int connSock) {
 	//printMess(recvMess);
-	char listPath[MAX_LIST_PATH];
 	char listFolder[MAX_LIST_PATH];
 	char listFile[MAX_LIST_PATH];
 	char path[100];
 	memset(path,'\0',sizeof(path));
-	memset(listPath,'\0',sizeof(listPath));
 	memset(listFolder,'\0',sizeof(listFolder));
 	memset(listFile,'\0',sizeof(listFile));
 	int i = findClient(recvMess.requestId);
 	strcat(path,"./");
 	strcat(path,onlineClient[i].username);
-	getListPath(path,listPath);
 	getListFolder(path,listFolder);
 	getListFile(path,listFile);
-	Message msg1,msg2,msg3;
-	//sent list path = list folder + list file
-	strcpy(msg1.payload,listPath);
+	Message msg1,msg2;
+	//sent list folder
+	strcpy(msg1.payload,listFolder);
 	msg1.requestId = recvMess.requestId;
 	msg1.length = strlen(msg1.payload);
 	sendMessage(onlineClient[i].connSock, msg1);
-	//sent list folder
-	strcpy(msg2.payload,listFolder);
+	//send list file
+	msg2.type = TYPE_REQUEST_DIRECTORY;
+	strcpy(msg2.payload,listFile);
 	msg2.requestId = recvMess.requestId;
 	msg2.length = strlen(msg2.payload);
 	sendMessage(onlineClient[i].connSock, msg2);
-	//send list file
-	msg3.type = TYPE_REQUEST_DIRECTORY;
-	strcpy(msg3.payload,listFile);
-	msg3.requestId = recvMess.requestId;
-	msg3.length = strlen(msg3.payload);
-	sendMessage(onlineClient[i].connSock, msg3);
 }
 
 

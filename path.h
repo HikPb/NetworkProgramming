@@ -8,5 +8,6 @@
 void getListPath(char * path, char *listpath);
 void getListFolder(char * path, char *listfolder);
 void getListFile(char * path, char *listfile);
+void remove_dir(char *path);
 #endif
 
