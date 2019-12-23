@@ -384,6 +384,7 @@ void handleRegister(Message mess, int connSock){
 							increaseRequestId();
 							int i = findAvaiableElementInArrayClient();
 							setClient(i, mess.requestId, username, connSock);
+							createFolder(username);
 						}
 					}
 				} else {

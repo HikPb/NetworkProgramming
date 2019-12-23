@@ -523,8 +523,8 @@ void folderProcess(char * pre_folder, char *cur_folder) {
 */
 void openFolder(char *folder) {
 	showDirectory(folder);
-	for(int u=0;u<=stack->top;u++)
-	printf("++++++Top Stack++++++: %s\n",stack->array[u]);
+	//for(int u=0;u<=stack->top;u++)
+	//printf("++++++Top Stack++++++: %s\n",stack->array[u]);
 	printf("\n------------------------------------------------\n");
 	char choose[10];
     int option;
@@ -658,8 +658,11 @@ void registerFunc(char *current_user){
 		if(mess->type != TYPE_ERROR){
 			isOnline = 1;
 			strcpy(current_user, username);
+			strcpy(root, "./");
+			strcat(root,username);
 			requestId = mess->requestId;
-			//getDirectory();
+			getDirectory();
+			stack = createStack(30);
 		} else {
 			showBubbleNotify("Error: Register Failed!!");
 		}
