@@ -33,6 +33,7 @@ char** listFolder;
 char** listFile;
 #define DIM(x) (sizeof(x)/sizeof(*(x)))
 
+void openFolder(char *folder);
 
 /*
 * count number param of command
@@ -146,7 +147,7 @@ void showDirectory(char *root) {
 	printf("\n---------------- Your Directory ----------------\n");
 	int i;
 	int j=0;
-	printf("  %-15s%-30s%-6s\n","Name","Path","Type");
+	printf("   %-15s%-30s%-6s\n","Name","Path","Type");
 	if(numberElementsInArray(listFolder)>0){
 		for (i = 0; *(listFolder + i); i++){
 			/*The POSIX version of dirname and basename may modify the content of the argument. 
@@ -154,7 +155,7 @@ void showDirectory(char *root) {
 			char *temp = strdup(listFolder[i]); 
 			char *temp2= strdup(listFolder[i]);
 			if(strcmp(dirname(temp),root)==0) {
-				printf("+ %-15s%-30sFolder\n",basename(temp2), listFolder[i]);
+				printf("%d. %-15s%-30sFolder\n",j+1, basename(temp2), listFolder[i]);
 				listCurrentDirec[j]=strdup(listFolder[i]);
 				j++;
 			}
@@ -167,7 +168,7 @@ void showDirectory(char *root) {
 			char *temp = strdup(listFile[i]); 
 			char *temp2= strdup(listFile[i]);
 			if(strcmp(dirname(temp),root)==0){
-				printf("- %-15s%-30sFile\n",basename(temp2), listFile[i]);
+				printf("%d. %-15s%-30sFile\n",j+1, basename(temp2), listFile[i]);
 				listCurrentDirec[j]=strdup(listFile[i]);
 				j++;
 			}
@@ -396,7 +397,90 @@ void downloadFile() {
 		return;
 	}
 }
+void open(char *pre_folder,char *cur_folder){
+	push(stack,pre_folder);
+	openFolder(cur_folder);
+}
 
+void createNewFolder(){
+	int i=0;
+	printf("\n------------------ Create Folder ------------------\n");
+	printf("Please choose folder you want to create into it :\n");
+	printf("1. %-15s./%-28sFolder\n",current_user,current_user);
+	if(numberElementsInArray(listFolder)>0){
+		for(i =0; *(listFolder+i);i++){
+			char *temp = strdup(listFolder[i]);
+			printf("%d. %-15s%-30sFolder\n", i+2, basename(temp), listFolder[i]);
+			free(temp);
+		}
+	}
+	char choose[10];
+	int option;
+	while(1){
+		printf("\nChoose (Press 0 to cancel): ");
+		scanf(" %s", choose);
+		while(getchar() != '\n');
+		option = atoi(choose);
+		if((option >= 0) && (option <= i+1)) {
+			break;
+		} else {
+			printf("Please Select Valid Options!!\n");
+		}
+	}
+	if(option == 0) return;
+	char newFolder[20];
+	Message sendMsg;
+	printf("Input new folder name: ");
+	scanf("%[^\n]s", newFolder);
+	if(option == 1){
+		strcpy(sendMsg.payload,root);
+	}else{
+		strcpy(sendMsg.payload,listFolder[option-2]);
+	}
+	strcat(sendMsg.payload,"/");
+	strcat(sendMsg.payload,newFolder);
+	sendMsg.length = strlen(sendMsg.payload);
+	sendMsg.requestId = requestId;
+	sendMsg.type = TYPE_CREATE_FOLDER;
+	sendMessage(client_sock,sendMsg);
+}
+
+void deleteFolder(char *cur_folder){
+	Message sendMsg;
+	strcpy(sendMsg.payload,cur_folder);
+	sendMsg.length = strlen(sendMsg.payload);
+	sendMsg.requestId = requestId;
+	sendMsg.type = TYPE_DELETE_FOLDER;
+	sendMessage(client_sock,sendMsg);
+}
+
+void menuFolderProcess() {
+	printf("\n------------------Folder Process------------------\n");
+	printf("\n1 - Open");
+	printf("\n2 - Delete Folder");
+	printf("\n3 - Cancel");
+	printf("\nChoose: ");
+}
+void folderProcess(char * pre_folder, char *cur_folder) {
+	menuFolderProcess();
+	scanf(" %c", &choose);
+	while(getchar() != '\n');
+	switch (choose){
+		case '1':
+			open(pre_folder,cur_folder);
+			break;
+		case '2':
+			deleteFolder(cur_folder);
+			getDirectory();
+			//openFolder(cur_folder);
+			break;
+		case '3':
+			break;
+		default:
+			printf("Syntax Error! Please choose again!\n");
+	}
+	
+}
 /*
 * open subfolder
 * @param 
@@ -422,14 +506,12 @@ void openFolder(char *folder) {
 		}
 	}	
 	if(option == 0) {
-		pop(stack);
-		if(!isEmpty(stack)) openFolder(peek(stack));
-		else openFolder(root);
+		if(!isEmpty(stack)) openFolder(pop(stack));
+		else return;
 	}
 	else{
 		if(hasInList(listCurrentDirec[option-1],listFolder)){
-			push(stack,folder);
-			openFolder(listCurrentDirec[option-1]);
+			folderProcess(folder,listCurrentDirec[option-1]);
 		}
 	}
 	
@@ -589,7 +671,8 @@ void mainMenu() {
 	printf("\n1 - Upload file");
 	printf("\n2 - Download File");
 	printf("\n3 - Open folder");
-	printf("\n4 - Logout");
+	printf("\n4 - Create folder");
+	printf("\n5 - Logout");
 	printf("\nPlease choose: ");
 }
 
@@ -639,6 +722,10 @@ void requestFileFunc() {
 			openFolder(root);
 			break;
 		case '4':
+			createNewFolder();
+			getDirectory();
+			break;
+		case '5':
 			logoutFunc(current_user);
 			break;
 		default:

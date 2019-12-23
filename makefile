@@ -8,7 +8,7 @@ server: tcp-server protocol.o authenticate.o status.o validate.o path.o
 	${CC} -pthread server.o protocol.o authenticate.o status.o validate.o path.o -o server
 
 client: tcp-client protocol.o  status.o validate.o stack.o
-	${CC} -pthread client.o protocol.o status.o validate.o stack.o -o client
+	${CC} client.o protocol.o status.o validate.o stack.o -o client
 
 tcp-server: server.c
 	${CC} ${CFLAGS} -o server.o server.c

@@ -130,7 +130,25 @@ void increaseRequestId() {
 	requestId++;
 	pthread_mutex_unlock(&lock);
 }
+/*
+* handle find or create folder as user
+* @param username
+* @return void
+*/
+void createFolder(char* path) {
+	struct stat st = {0};
+	if (stat(path, &st) == -1) {
+	    mkdir(path, 0700);
+	}
+}
 
+void handleCreateFolder(Message recvMess){
+	createFolder(recvMess.payload);
+}
+
+void handleDeleteFolder(Message recvMess){
+	remove_dir(recvMess.payload);
+}
 
 void handleDirectory(Message recvMess, int connSock) {
 	//printMess(recvMess);
@@ -280,17 +298,7 @@ void handleUploadFile(Message recvMsg, int connSock) {
 void getFullPath(char* fileName, char* fullPath) {
 	sprintf(fullPath, "%s/%s", fileRepository, fileName);
 }
-/*
-* handle find or create folder as user
-* @param username
-* @return void
-*/
-void findOrCreateFolderUsername(char* username) {
-	struct stat st = {0};
-	if (stat(username, &st) == -1) {
-	    mkdir(username, 0700);
-	}
-}
+
 /*
 * handle login function
 * @param message, int connSock
@@ -320,7 +328,7 @@ void handleLogin(Message mess, int connSock) {
 							int i = findAvaiableElementInArrayClient();
 							setClient(i, mess.requestId, username, connSock); // when user login success set user to online client
 							printf("Login ID:%d, rqID: %d, connsock: %d\n",i,mess.requestId,connSock);
-							findOrCreateFolderUsername(username);
+							createFolder(username);
 						}
 					}
 				} else {
@@ -473,7 +481,11 @@ void* client_handler(void* conn_sock) {
 			case TYPE_UPLOAD_FILE: 
 				handleUploadFile(recvMess, connSock);
 				break;
-			case TYPE_ERROR: 
+			case TYPE_CREATE_FOLDER:
+				handleCreateFolder(recvMess); 
+				break;
+			case TYPE_DELETE_FOLDER:
+				handleDeleteFolder(recvMess);
 				break;
 			default: break;
 		}
